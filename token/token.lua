@@ -4,12 +4,23 @@ local M = {}
 local TokenType = {
 	ILLEGAL = "ILLEGAL",
 	EOF = "EOF",
+
 	-- Identifiers + literals
 	IDENT = "IDENT", -- add, foobar, x, y, ...
 	INT = "INT", -- 1343456
+
 	--Operators
 	ASSIGN = "=",
 	PLUS = "+",
+	MINUS = "-",
+	BANG = "!",
+	ASTERISK = "*",
+	SLASH = "/",
+	EQ = "==",
+	NOT_EQ = "!=",
+	LT = "<",
+	GT = ">",
+
 	--Delimiters
 	COMMA = ",",
 	SEMICOLON = ";",
@@ -17,9 +28,15 @@ local TokenType = {
 	RPAREN = ")",
 	LBRACE = "{",
 	RBRACE = "}",
+
 	--Keywords
 	FUNCTION = "FUNCTION",
 	LET = "LET",
+	TRUE = "TRUE",
+	FALSE = "FALSE",
+	IF = "IF",
+	ELSE = "ELSE",
+	RETURN = "RETURN",
 }
 M.TokenType = TokenType
 
@@ -36,6 +53,26 @@ function Token:new(token)
 	return t
 end
 
+local keywords = {
+	["fn"] = TokenType.FUNCTION,
+	["let"] = TokenType.LET,
+	["true"] = TokenType.TRUE,
+	["false"] = TokenType.FALSE,
+	["if"] = TokenType.IF,
+	["else"] = TokenType.ELSE,
+	["return"] = TokenType.RETURN,
+}
+
+---Checks identifier and returns appropriate type
+---@param ident string
+---@return TokenType
+local function lookupIdent(ident)
+	if keywords[ident] then
+		return keywords[ident]
+	end
+	return TokenType.IDENT
+end
+M.lookupIdent = lookupIdent
 
 
 return M
