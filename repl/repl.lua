@@ -1,11 +1,31 @@
 local lu = require("luaunit")
 local lexer = require("lexer.lexer")
-local token = require("token.token")
+local parser = require("parser.parser")
 
 local M = {}
 local PROMPT = ">>"
+local MONKEY_FACE = [[
+	_____
+____________
+___O____O___
+  ________
+  __||||__
+    ____
+]]
 
 ---comment
+---@param outp file*
+---@param errors string[]
+local function printParserErrors(outp, errors)
+	outp:write(MONKEY_FACE)
+	outp:write("Whoops! We ran into some monkey business here!\n")
+	outp:write("parser errors:\n")
+	for _, msg in ipairs(errors) do
+		outp:write("\t" .. msg .. "\n")
+	end
+end
+
+---Repl start func
 ---@param inp file*
 ---@param outp file*
 local function start(inp, outp)
@@ -16,16 +36,17 @@ local function start(inp, outp)
 			return
 		end
 		local l = lexer.Lexer:new(scanned)
-		local tok = l:nextToken()
-		while tok.type ~= token.TokenType.EOF do
-			print()
-			outp:write(lu.prettystr(tok).."\n")
-			print()
-			tok = l:nextToken()
+		local p = parser.Parser:new(l)
+		local program = p:parseProgram()
+		if #p:getErrors() ~= 0 then
+			printParserErrors(outp, p:getErrors())
+			goto continue
 		end
+		outp:write(tostring(program))
+		outp:write("\n")
+		::continue::
 	end
 end
 M.start = start
 
 return M
-
