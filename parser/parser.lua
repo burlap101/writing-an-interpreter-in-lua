@@ -28,8 +28,8 @@ local precedences = {
 	[token.TokenType.LPAREN] = Precedence.CALL,
 }
 
----@alias PrefixParseFn fun(): Expression?
----@alias InfixParseFn fun(e: Expression?): Expression?
+---@alias PrefixParseFn fun(): ast.Expression?
+---@alias InfixParseFn fun(e: ast.Expression?): ast.Expression?
 
 ---@class Parser
 ---@field lexer Lexer
@@ -85,7 +85,7 @@ end
 ---@return InfixParseFn
 function Parser:parseCallExpression()
 	---Inner function definition
-	---@param func Expression
+	---@param func ast.Expression
 	local fn = function(func)
 		local exp = ast.CallExpression:new{
 			token = self.curToken,
@@ -98,9 +98,9 @@ function Parser:parseCallExpression()
 end
 
 ---Parses function call arguments
----@return Expression[]?
+---@return ast.Expression[]?
 function Parser:parseCallArguments()
-	---@type Expression[]
+	---@type ast.Expression[]
 	local args = {}
 	if self:peekTokenIs(token.TokenType.RPAREN) then
 		self:nextToken()
@@ -139,9 +139,9 @@ function Parser:parseFunctionLiteral()
 end
 
 ---Parses function argument identifiers
----@return Identifier[]?
+---@return ast.Identifier[]?
 function Parser:parseFunctionParameters()
-	---@type Identifier[]
+	---@type ast.Identifier[]
 	local identifiers = {}
 
 	if self:peekTokenIs(token.TokenType.RPAREN) then
@@ -208,10 +208,10 @@ function Parser:parseIfExpression()
 end
 
 ---Parses a block statement i.e. { ... }
----@return BlockStatement
+---@return ast.BlockStatement
 function Parser:parseBlockStatement()
 	local block = ast.BlockStatement:new { token = self.curToken }
-	---@type Statement[]
+	---@type ast.Statement[]
 	block.statements = {}
 	self:nextToken()
 	while not self:curTokenIs(token.TokenType.RBRACE) and not self:curTokenIs(token.TokenType.EOF) do
@@ -257,8 +257,8 @@ end
 ---Parses an infix expression e.g. 5 + 5
 ---@return InfixParseFn
 function Parser:parseInfixExpression()
-	---@param left Expression
-	---@return InfixExpression
+	---@param left ast.Expression
+	---@return ast.InfixExpression
 	local fn = function(left)
 		local expression = ast.InfixExpression:new {
 			token = self.curToken,
@@ -363,7 +363,7 @@ function Parser:nextToken()
 end
 
 ---Parse a program
----@return Program?
+---@return ast.Program
 function Parser:parseProgram()
 	local program = ast.Program:new()
 	program.statements = {}
@@ -379,7 +379,7 @@ function Parser:parseProgram()
 end
 
 ---Parse statement entry
----@return Statement?
+---@return ast.Statement?
 function Parser:parseStatement()
 	if self.curToken.type == token.TokenType.LET then
 		return self:parseLetStatement()
@@ -399,7 +399,7 @@ function Parser:parseExpressionStatement()
 end
 
 ---Parses a let statement
----@return LetStatement?
+---@return ast.LetStatement?
 function Parser:parseLetStatement()
 	local stmt = ast.LetStatement:new { token = self.curToken }
 	if not self:expectPeek(token.TokenType.IDENT) then
@@ -435,7 +435,7 @@ end
 
 ---Parse the expression for then given precedence
 ---@param precedence Precedence
----@return Expression?
+---@return ast.Expression?
 function Parser:parseExpression(precedence)
 	local prefix = self.prefixParseFns[self.curToken.type]
 	if prefix == nil then

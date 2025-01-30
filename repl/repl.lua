@@ -1,11 +1,12 @@
 local lu = require("luaunit")
 local lexer = require("lexer.lexer")
 local parser = require("parser.parser")
+local evaluator = require("evaluator.evaluator")
 
 local M = {}
-local PROMPT = ">>"
+local PROMPT = ">> "
 local MONKEY_FACE = [[
-	_____
+    _____
 ____________
 ___O____O___
   ________
@@ -13,7 +14,7 @@ ___O____O___
     ____
 ]]
 
----comment
+---Print parser errors
 ---@param outp file*
 ---@param errors string[]
 local function printParserErrors(outp, errors)
@@ -42,8 +43,11 @@ local function start(inp, outp)
 			printParserErrors(outp, p:getErrors())
 			goto continue
 		end
-		outp:write(tostring(program))
-		outp:write("\n")
+		local evaluated = evaluator.eval(program)
+		if evaluated ~= nil then
+			outp:write(tostring(evaluated:inspect()))
+			outp:write("\n")
+		end
 		::continue::
 	end
 end

@@ -2,7 +2,7 @@ local utils = require("utils")
 local lu = require("luaunit")
 local M = {}
 
----@class Node
+---@class ast.Node
 local Node = {}
 M.Node = Node
 
@@ -12,7 +12,7 @@ function Node:tokenLiteral()
 	error("not implemented")
 end
 
----@class Statement:Node
+---@class ast.Statement:ast.Node
 local Statement = utils.inheritsFrom(Node)
 M.Statement = Statement
 
@@ -21,7 +21,7 @@ function Statement:statementNode()
 	error("not implemented")
 end
 
----@class Expression:Node
+---@class ast.Expression:ast.Node
 local Expression = utils.inheritsFrom(Node)
 M.Expression = Expression
 
@@ -30,19 +30,27 @@ function Expression:expressionNode()
 	error("not implemented")
 end
 
----@class Program:Node
----@field statements Statement[]
+---@class ast.Program:ast.Node
+---@field statements ast.Statement[]
 local Program = utils.inheritsFrom(Node)
+Program.metatable = {
+	__index = Program,
+	__tostring = function (t)
+		return t:toString()
+	end
+}
 M.Program = Program
 
 function Program:new()
-	local p = setmetatable({}, {
-		__index = self,
-		__tostring = function (t)
-			return t:toString()
-		end
-	})
+	local p = setmetatable({}, self.metatable)
 	return p
+end
+
+---Determine is instance of Program
+---@param obj table
+---@return boolean
+function Program.isInstance(obj)
+	return getmetatable(obj) == Program.metatable
 end
 
 function Program:toString()
@@ -63,10 +71,10 @@ function Program:tokenLiteral()
 	end
 end
 
----@class LetStatement:Statement
+---@class ast.LetStatement:ast.Statement
 ---@field token Token
----@field name Identifier
----@field value Expression?
+---@field name ast.Identifier
+---@field value ast.Expression?
 local LetStatement = utils.inheritsFrom(Statement)
 LetStatement.metatable = {
 	__index = LetStatement,
@@ -109,7 +117,7 @@ function LetStatement:tokenLiteral()
 	return self.token.literal
 end
 
----@class Identifier:Expression
+---@class ast.Identifier:ast.Expression
 ---@field token Token
 ---@field value string
 local Identifier = utils.inheritsFrom(Expression)
@@ -143,9 +151,9 @@ function Identifier:tokenLiteral()
 	return self.token.literal
 end
 
----@class ReturnStatement:Statement
+---@class ast.ReturnStatement:ast.Statement
 ---@field token Token
----@field returnValue Expression?
+---@field returnValue ast.Expression?
 local ReturnStatement = utils.inheritsFrom(Statement)
 ReturnStatement.metatable = {
 	__index = ReturnStatement,
@@ -185,9 +193,9 @@ function ReturnStatement:tokenLiteral()
 	return self.token.literal
 end
 
----@class ExpressionStatement:Statement
+---@class ast.ExpressionStatement:ast.Statement
 ---@field token Token
----@field expression Expression?
+---@field expression ast.Expression?
 local ExpressionStatement = utils.inheritsFrom(Statement)
 ExpressionStatement.metatable = {
 	__index = ExpressionStatement,
@@ -225,7 +233,7 @@ function ExpressionStatement:tokenLiteral()
 	return self.token.literal
 end
 
----@class IntegerLiteral:Expression
+---@class ast.IntegerLiteral:ast.Expression
 ---@field token Token
 ---@field value integer
 local IntegerLiteral = utils.inheritsFrom(Expression)
@@ -263,10 +271,10 @@ function IntegerLiteral:toString()
 	return self.token.literal
 end
 
----@class PrefixExpression:Expression
+---@class ast.PrefixExpression:ast.Expression
 ---@field token Token
 ---@field operator string
----@field right Expression?
+---@field right ast.Expression?
 local PrefixExpression = utils.inheritsFrom(Expression)
 PrefixExpression.metatable = {
 	__index = PrefixExpression,
@@ -303,11 +311,11 @@ function PrefixExpression:toString()
 	return out
 end
 
----@class InfixExpression:Expression
+---@class ast.InfixExpression:ast.Expression
 ---@field token Token  the operator token, e.g. +
----@field left Expression
+---@field left ast.Expression
 ---@field operator string
----@field right Expression?
+---@field right ast.Expression?
 local InfixExpression = utils.inheritsFrom(Expression)
 InfixExpression.metatable = {
 	__index = InfixExpression,
@@ -350,7 +358,7 @@ function InfixExpression:toString()
 	return out
 end
 
----@class Bool:Expression
+---@class ast.Bool:ast.Expression
 ---@field token Token
 ---@field value boolean
 local Bool = utils.inheritsFrom(Expression)
@@ -363,8 +371,8 @@ Bool.metatable = {
 M.Bool = Bool
 
 ---Constructor for Bool
----@param b Bool
----@return Bool
+---@param b ast.Bool
+---@return ast.Bool
 function Bool:new(b)
 	b = setmetatable(b or {}, self.metatable)
 	return b
@@ -388,11 +396,11 @@ function Bool:toString()
 	return self.token.literal
 end
 
----@class IfExpression:Expression
+---@class ast.IfExpression:ast.Expression
 ---@field token Token
----@field condition Expression
----@field consequence BlockStatement
----@field alternative BlockStatement
+---@field condition ast.Expression
+---@field consequence ast.BlockStatement
+---@field alternative ast.BlockStatement
 local IfExpression = utils.inheritsFrom(Expression)
 IfExpression.metatable = {
 	__index = IfExpression,
@@ -403,8 +411,8 @@ IfExpression.metatable = {
 M.IfExpression = IfExpression
 
 ---Constructor for IfExpression
----@param ie IfExpression
----@return IfExpression
+---@param ie ast.IfExpression
+---@return ast.IfExpression
 function IfExpression:new(ie)
 	ie = setmetatable(ie or {}, self.metatable)
 	return ie
@@ -426,20 +434,20 @@ end
 
 function IfExpression:toString()
 	local out = ""
-	out = out .. "if"
-	out = out .. self.condition
+	out = out .. "if "
+	out = out .. tostring(self.condition)
 	out = out .. " "
-	out = out .. self.consequence
+	out = out .. tostring(self.consequence)
 	if self.alternative ~= nil then
 		out = out .. "else"
-		out = out .. self.alternative
+		out = out .. tostring(self.alternative)
 	end
 	return out
 end
 
----@class BlockStatement:Statement
+---@class ast.BlockStatement:ast.Statement
 ---@field token Token
----@field statements Statement[]
+---@field statements ast.Statement[]
 local BlockStatement = utils.inheritsFrom(Statement)
 BlockStatement.metatable = {
 	__index = BlockStatement,
@@ -450,11 +458,15 @@ BlockStatement.metatable = {
 M.BlockStatement = BlockStatement
 
 ---Constructor for a block statement
----@param bs BlockStatement
----@return BlockStatement
+---@param bs ast.BlockStatement
+---@return ast.BlockStatement
 function BlockStatement:new(bs)
 	bs = setmetatable(bs or {}, self.metatable)
 	return bs
+end
+
+function BlockStatement.isInstance(obj)
+	return getmetatable(obj) == BlockStatement.metatable
 end
 
 function BlockStatement:statementNode()
@@ -476,10 +488,10 @@ function BlockStatement:toString()
 	return out
 end
 
----@class FunctionLiteral:Expression
+---@class ast.FunctionLiteral:ast.Expression
 ---@field token Token
----@field parameters Identifier?[]
----@field body BlockStatement?
+---@field parameters ast.Identifier?[]
+---@field body ast.BlockStatement?
 local FunctionLiteral = utils.inheritsFrom(Expression)
 FunctionLiteral.metatable = {
 	__index = FunctionLiteral,
@@ -490,8 +502,8 @@ FunctionLiteral.metatable = {
 M.FunctionLiteral = FunctionLiteral
 
 ---Constructor for a function literal
----@param fl FunctionLiteral
----@return FunctionLiteral
+---@param fl ast.FunctionLiteral
+---@return ast.FunctionLiteral
 function FunctionLiteral:new(fl)
 	fl = setmetatable(fl or {}, self.metatable)
 	return fl
@@ -529,10 +541,10 @@ function FunctionLiteral:toString()
 	return out
 end
 
----@class CallExpression
+---@class ast.CallExpression
 ---@field token Token
----@field func Expression
----@field arguments Expression[]?
+---@field func ast.Expression
+---@field arguments ast.Expression[]?
 local CallExpression = utils.inheritsFrom(Expression)
 CallExpression.metatable = {
 	__index = CallExpression,
@@ -557,7 +569,7 @@ end
 function CallExpression:expressionNode()
 end
 
----
+---Retrieves token.literal
 ---@return string
 function CallExpression:tokenLiteral()
 	return self.token.literal
