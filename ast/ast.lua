@@ -490,8 +490,8 @@ end
 
 ---@class ast.FunctionLiteral:ast.Expression
 ---@field token Token
----@field parameters ast.Identifier?[]
----@field body ast.BlockStatement?
+---@field parameters ast.Identifier[]
+---@field body ast.BlockStatement
 local FunctionLiteral = utils.inheritsFrom(Expression)
 FunctionLiteral.metatable = {
 	__index = FunctionLiteral,
@@ -536,7 +536,7 @@ function FunctionLiteral:toString()
 	out = out .. "("
 	out = out .. table.concat(params, ", ")
 	out = out .. ")"
-	out = out .. self.body
+	out = out .. tostring(self.body)
 
 	return out
 end
@@ -591,5 +591,49 @@ function CallExpression:toString()
 	out = out .. ")"
 	return out
 end
+
+---@class ast.StringLiteral:ast.Expression
+---@field token Token
+---@field value string
+local StringLiteral = utils.inheritsFrom(Expression)
+StringLiteral.metatable = {
+	__index = StringLiteral,
+	__tostring = function (t)
+		return t:toString()
+	end
+}
+M.StringLiteral = StringLiteral
+
+---Constructor for the StringLiteral
+---@param sl ast.StringLiteral
+---@return ast.StringLiteral
+function StringLiteral:new(sl)
+	sl = setmetatable(sl or {}, self.metatable)
+	return sl
+end
+
+---Determines if supplied object is StringLiteral
+---@param obj any
+---@return boolean
+function StringLiteral.isInstance(obj)
+	return getmetatable(obj) == StringLiteral.metatable
+end
+
+---Blank method to conform to go interface from Expression
+function StringLiteral:expressionNode()
+end
+
+---Getter for token.literal
+---@return string
+function StringLiteral:tokenLiteral()
+	return self.token.literal
+end
+
+---String representation of StringLiteral
+---@return string
+function StringLiteral:toString()
+	return self.token.literal
+end
+
 
 return M

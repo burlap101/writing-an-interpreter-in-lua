@@ -2,6 +2,7 @@ local lu = require("luaunit")
 local lexer = require("lexer.lexer")
 local parser = require("parser.parser")
 local evaluator = require("evaluator.evaluator")
+local environment = require("object.environment")
 
 local M = {}
 local PROMPT = ">> "
@@ -30,6 +31,7 @@ end
 ---@param inp file*
 ---@param outp file*
 local function start(inp, outp)
+	local env = environment.Environment:new()
 	while true do
 		outp:write(PROMPT)
 		local scanned = inp:read("l")
@@ -43,7 +45,7 @@ local function start(inp, outp)
 			printParserErrors(outp, p:getErrors())
 			goto continue
 		end
-		local evaluated = evaluator.eval(program)
+		local evaluated = evaluator.eval(program, env)
 		if evaluated ~= nil then
 			outp:write(tostring(evaluated:inspect()))
 			outp:write("\n")

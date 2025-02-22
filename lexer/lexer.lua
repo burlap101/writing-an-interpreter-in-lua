@@ -43,6 +43,19 @@ function Lexer:readChar()
 	self.readPosition = self.readPosition + 1
 end
 
+---Reads strings for the lexer
+---@return string
+function Lexer:readString()
+	local position = self.position + 1
+	while true do
+		self:readChar()
+		if self.ch == '"' or self.ch == 0 then
+			break
+		end
+	end
+	return string.sub(self.input, position, self.position-1)
+end
+
 ---Retrieves next token and progresses lexer
 ---@return Token
 function Lexer:nextToken()
@@ -94,6 +107,8 @@ function Lexer:nextToken()
 		tok = newToken(token.TokenType.RBRACE, self.ch)
 	elseif self.ch == "" then
 		tok = token.Token:new{literal = "", type = token.TokenType.EOF}
+	elseif self.ch == '"' then
+		tok = token.Token:new{literal = self:readString(), type = token.TokenType.STRING}
 	else
 		if M.isLetter(self.ch) then
 			tok = token.Token:new{literal = self:readIdentifier()}

@@ -64,6 +64,7 @@ function Parser:new(lexer)
 	p:registerPrefix(token.TokenType.LPAREN, p:parseGroupedExpression())
 	p:registerPrefix(token.TokenType.IF, p:parseIfExpression())
 	p:registerPrefix(token.TokenType.FUNCTION, p:parseFunctionLiteral())
+	p:registerPrefix(token.TokenType.STRING, p:parseStringLiteral())
 
 	-- Declare and registr all infix functions
 	p.infixParseFns = {}
@@ -486,6 +487,14 @@ end
 function Parser:noPrefixParseFnError(t)
 	local msg = "no prefix parse function for " .. tostring(t) .. " found"
 	table.insert(self.errors, msg)
+end
+
+---Parses a string literal
+---@return PrefixParseFn
+function Parser:parseStringLiteral()
+	return function()
+		return ast.StringLiteral:new{token = self.curToken, value = self.curToken.literal}
+	end
 end
 
 return M

@@ -25,6 +25,8 @@ TestLexer = {}
 
 			10 == 10;
 			10 != 9;
+			"foobar"
+			"foo bar"
 		]]
 		---@class TestCase
 		---@field expectedType TokenType
@@ -105,6 +107,8 @@ TestLexer = {}
 			{expectedType=token.TokenType.NOT_EQ, expectedLiteral="!="},
 			{expectedType=token.TokenType.INT, expectedLiteral="9"},
 			{expectedType=token.TokenType.SEMICOLON, expectedLiteral=";"},
+			{expectedType=token.TokenType.STRING, expectedLiteral="foobar"},
+			{expectedType=token.TokenType.STRING, expectedLiteral="foo bar"},
 			{expectedType=token.TokenType.EOF, expectedLiteral=""},
 		}
 

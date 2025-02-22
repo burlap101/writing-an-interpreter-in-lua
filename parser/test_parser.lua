@@ -565,3 +565,19 @@ function TestParser:testCallExpressionParsing()
 	testInfixExpression(exp.arguments[2], 2, "*", 3)
 	testInfixExpression(exp.arguments[3], 4, "+", 5)
 end
+
+function TestParser:testStringLiteralExpression()
+	local input = [["hello world";]]
+
+	local l = lexer.Lexer:new(input)
+	local p = parser.Parser:new(l)
+	local program = p:parseProgram()
+	checkParserErrors(p)
+	assert(program)
+
+	LU.assertTrue(ast.ExpressionStatement.isInstance(program.statements[1]))
+	local stmt = program.statements[1]  --[[@as ast.ExpressionStatement]]
+	LU.assertTrue(ast.StringLiteral.isInstance(stmt.expression))
+	local literal = stmt.expression  --[[@as ast.StringLiteral]]
+	LU.assertEquals(literal.value, "hello world")
+end

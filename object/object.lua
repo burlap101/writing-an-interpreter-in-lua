@@ -2,6 +2,7 @@ local utils = require("utils")
 local M = {}
 
 ---@alias object.ObjectType string
+---@alias object.BuiltinFunction function(...):object.Object
 
 ---@enum ObjectTypes
 local ObjectTypes = {
@@ -9,6 +10,10 @@ local ObjectTypes = {
 	BOOLEAN_OBJ = "BOOLEAN",
 	NULL_OBJ = "NULL",
 	RETURN_VALUE_OBJ = "RETURN_VALUE",
+	ERROR_OBJ = "ERROR",
+	FUNCTION_OBJ = "FUNCTION",
+	STRING_OBJ = "STRING",
+	BUILTIN_OBJ = "BUILTIN",
 }
 M.ObjectTypes = ObjectTypes
 
@@ -98,9 +103,12 @@ local Null = utils.inheritsFrom(Object)
 M.Null = Null
 
 function Null:new()
-	local o = setmetatable({}, { __index = self, __tostring = function ()
-		return "NULL"
-	end})
+	local o = setmetatable({}, {
+		__index = self,
+		__tostring = function()
+			return "NULL"
+		end
+	})
 	return o
 end
 
@@ -142,6 +150,151 @@ end
 function ReturnValue:inspect()
 	return self.value:inspect()
 end
+
 M.ReturnValue = ReturnValue
+
+---@class object.Error:object.Object
+---@field message string
+local Error = utils.inheritsFrom(Object)
+Error.metatable = {
+	__index = Error,
+}
+M.Error = Error
+
+---Constructor for Error obj
+---@param e object.Error
+---@return object.Error
+function Error:new(e)
+	e = setmetatable(e or {}, self.metatable)
+	return e
+end
+
+---Determine if supplied obj is Error type
+---@param obj table
+---@return boolean
+function Error.isInstance(obj)
+	return getmetatable(obj) == Error.metatable
+end
+
+---Getter for object type
+---@return string
+function Error:type()
+	return ObjectTypes.ERROR_OBJ
+end
+
+---String representation of the error
+---@return string
+function Error:inspect()
+	return "ERROR: " .. self.message
+end
+
+---@class object.Func:object.Object
+---@field parameters ast.Identifier[]
+---@field body ast.BlockStatement
+---@field env environment.Environment
+local Func = utils.inheritsFrom(Object)
+Func.metatable = { __index = Func }
+M.Func = Func
+
+function Func:new(f)
+	f = setmetatable(f or {}, self.metatable)
+	return f
+end
+
+---Determines if object is an instance of Func
+---@param obj any
+---@return boolean
+function Func.isInstance(obj)
+	return getmetatable(obj) == Func.metatable
+end
+
+---Get ObjectType
+---@return string
+function Func:type()
+	return ObjectTypes.FUNCTION_OBJ
+end
+
+---Get string representation of the function
+---@return string
+function Func:inspect()
+	local out = ""
+	---@type string[]
+	local params = {}
+	for _, p in ipairs(self.parameters) do
+		table.insert(params, tostring(p))
+	end
+	out = out .. "fn"
+	out = out .. "("
+	out = out .. table.concat(params, ", ")
+	out = out .. ") {\n"
+	out = out .. "\n}"
+	return out
+end
+
+---@class object.String:object.Object
+---@field value string
+local String = utils.inheritsFrom(Object)
+String.metatable = { __index = String }
+M.String = String
+
+---Constructor for new string object
+---@param s object.String
+---@return object.String
+function String:new(s)
+	s = setmetatable(s or {}, self.metatable)
+	return s
+end
+
+---Determines if object is type string
+---@param obj table
+---@return boolean
+function String.isInstance(obj)
+	return getmetatable(obj) == String.metatable
+end
+
+---Get object type
+---@return string
+function String:type()
+	return ObjectTypes.STRING_OBJ
+end
+
+---Get string representation of string
+---@return string
+function String:inspect()
+	return self.value
+end
+
+---@class object.Builtin:object.Object
+---@field fn object.BuiltinFunction
+local Builtin = utils.inheritsFrom(Object)
+Builtin.metatable = {__index = Builtin}
+M.Builtin = Builtin
+
+---Constructor for a Builtin object
+---@param bi object.Builtin
+---@return object.Builtin
+function Builtin:new(bi)
+	bi = setmetatable(bi or {}, self.metatable)
+	return bi
+end
+
+---Determines if object is Builtin type
+---@param obj table
+---@return boolean
+function Builtin.isInstance(obj)
+	return getmetatable(obj) == Builtin.metatable
+end
+
+---Gets object type
+---@return string
+function Builtin:type()
+	return ObjectTypes.BUILTIN_OBJ
+end
+
+---String representation of builtin
+---@return string
+function Builtin:inspect()
+	return "builtin function"
+end
 
 return M
