@@ -14,6 +14,7 @@ local ObjectTypes = {
 	FUNCTION_OBJ = "FUNCTION",
 	STRING_OBJ = "STRING",
 	BUILTIN_OBJ = "BUILTIN",
+	ARRAY_OBJ = "ARRAY",
 }
 M.ObjectTypes = ObjectTypes
 
@@ -295,6 +296,48 @@ end
 ---@return string
 function Builtin:inspect()
 	return "builtin function"
+end
+
+---@class object.Array:object.Object
+---@field elements object.Object[]
+local Array = utils.inheritsFrom(Object)
+Array.metatable = {__index = Array}
+M.Array = Array
+
+---Constructor for an array object
+---@param a object.Array
+---@return object.Array
+function Array:new(a)
+	a = setmetatable(a or {}, self.metatable)
+	return a
+end
+
+---Determines if obj is instance of Array
+---@param obj table
+---@return boolean
+function Array.isInstance(obj)
+	return getmetatable(obj) == Array.metatable
+end
+
+---Getter for object type
+---@return string
+function Array:type()
+	return ObjectTypes.ARRAY_OBJ
+end
+
+---Object string representation
+---@return string
+function Array:inspect()
+	local out = ""
+	---@type string[]
+	local elements = {}
+	for _, e in ipairs(self.elements) do
+		table.insert(elements, e:inspect())
+	end
+	out = out .. "["
+	out = out .. table.concat(elements, ", ")
+	out = out .. "]"
+	return out
 end
 
 return M

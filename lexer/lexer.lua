@@ -109,6 +109,12 @@ function Lexer:nextToken()
 		tok = token.Token:new{literal = "", type = token.TokenType.EOF}
 	elseif self.ch == '"' then
 		tok = token.Token:new{literal = self:readString(), type = token.TokenType.STRING}
+	elseif self.ch == "[" then
+		tok = newToken(token.TokenType.LBRACKET, self.ch)
+	elseif self.ch == "]" then
+		tok = newToken(token.TokenType.RBRACKET, self.ch)
+	elseif self.ch == ":" then
+		tok = newToken(token.TokenType.COLON, self.ch)
 	else
 		if M.isLetter(self.ch) then
 			tok = token.Token:new{literal = self:readIdentifier()}

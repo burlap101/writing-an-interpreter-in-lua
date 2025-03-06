@@ -1,6 +1,7 @@
 local lexer = require("lexer.lexer")
 local parser = require("parser.parser")
 local ast = require("ast.ast")
+local utils = require("utils")
 LU = require("luaunit")
 
 TestParser = {}
@@ -20,7 +21,7 @@ end
 
 
 ---comment
----@param s Statement
+---@param s ast.Statement
 ---@param name string
 ---@return boolean
 local function testLetStatement(s, name)
@@ -28,7 +29,7 @@ local function testLetStatement(s, name)
 		LU.fail("s.TokenLiteral not 'let'; got=" .. s:tokenLiteral())
 		return false
 	end
-	local letStmt = s --[[@as LetStatement]]
+	local letStmt = s --[[@as ast.LetStatement]]
 	if not ast.LetStatement.isInstance(s) then
 		LU.fail("s not ast.LetStatement; got=" .. LU.prettystr(getmetatable(s)))
 		return false
@@ -45,38 +46,38 @@ local function testLetStatement(s, name)
 end
 
 ---Tests a given integer literal and value combo
----@param il Expression
+---@param il ast.Expression
 ---@param value integer
 local function testIntegerLiteral(il, value)
 	LU.assertTrue(ast.IntegerLiteral.isInstance(il))
-	local integ = il --[[@as IntegerLiteral]]
+	local integ = il --[[@as ast.IntegerLiteral]]
 	LU.assertEquals(integ.value, value)
 	LU.assertEquals(integ:tokenLiteral(), tostring(value))
 end
 
 
 ---Helper function section 2.8
----@param exp Expression
+---@param exp ast.Expression
 ---@param value string
 local function testIdentifier(exp, value)
 	LU.assertIsTrue(ast.Identifier.isInstance(exp))
-	local ident = exp --[[@as Identifier]]
+	local ident = exp --[[@as ast.Identifier]]
 	LU.assertEquals(ident.value, value)
 	LU.assertEquals(ident:tokenLiteral(), value)
 end
 
 ---comment
----@param exp Expression
+---@param exp ast.Expression
 ---@param value boolean
 local function testBooleanExpression(exp, value)
 	LU.assertIsTrue(ast.Bool.isInstance(exp))
-	local bo = exp --[[@as Bool]]
+	local bo = exp --[[@as ast.Bool]]
 	LU.assertEquals(bo.value, value)
 	LU.assertEquals(bo:tokenLiteral(), tostring(value))
 end
 
 ---Helper function section 2.8
----@param exp Expression
+---@param exp ast.Expression
 ---@param expected any
 local function testLiteralExpression(exp, expected)
 	local v = type(expected)
@@ -92,13 +93,13 @@ local function testLiteralExpression(exp, expected)
 end
 
 ---Helper function section 2.8
----@param exp Expression
+---@param exp ast.Expression
 ---@param left any
 ---@param operator string
 ---@param right any
 local function testInfixExpression(exp, left, operator, right)
 	LU.assertTrue(ast.InfixExpression.isInstance(exp))
-	local opExp = exp --[[@as InfixExpression]]
+	local opExp = exp --[[@as ast.InfixExpression]]
 	testLiteralExpression(opExp.left, left)
 	LU.assertEquals(opExp.operator, operator)
 	testLiteralExpression(opExp.right, right)
@@ -172,7 +173,7 @@ function TestParser:testReturnStatements()
 		LU.assertEquals(#program.statements, 1)
 		LU.assertIsTrue(ast.ReturnStatement.isInstance(program.statements[1]))
 
-		local returnStmt = program.statements[1] --[[@as ReturnStatement]]
+		local returnStmt = program.statements[1] --[[@as ast.ReturnStatement]]
 		LU.assertEquals(returnStmt:tokenLiteral(), "return")
 		testLiteralExpression(returnStmt.returnValue, tt.expectedValue)
 	end
@@ -189,12 +190,12 @@ function TestParser:testIdentifierExpression()
 	end
 
 	checkParserErrors(p)
-	---@diagnostic disable-next-line: need-check-nil
+	assert(program)
 	LU.assertEquals(#program.statements, 1)
 	LU.assertTrue(ast.ExpressionStatement.isInstance(program.statements[1]))
-	LU.assertTrue(ast.Identifier.isInstance(program.statements[1].expression))
-	---@diagnostic disable-next-line: undefined-field
-	local exp = program.statements[1].expression ---@as Expression
+	local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
+	LU.assertTrue(ast.Identifier.isInstance(stmt.expression))
+	local exp = stmt.expression --[[@as ast.Identifier]]
 	LU.assertEquals(exp.value, "foobar")
 end
 
@@ -214,7 +215,7 @@ function TestParser:testIntegerLiteralExpression()
 	local stmt = program.statements[1]
 	LU.assertTrue(ast.ExpressionStatement.isInstance(stmt))
 	---@diagnostic disable-next-line: undefined-field
-	local literal = stmt.expression --[[@as IntegerLiteral]]
+	local literal = stmt.expression --[[@as ast.IntegerLiteral]]
 	LU.assertTrue(ast.IntegerLiteral.isInstance(literal))
 	LU.assertEquals(literal.value, 5)
 	LU.assertEquals(literal:tokenLiteral(), "5")
@@ -257,7 +258,7 @@ function TestParser:testParsingPrefixExpressions()
 		local stmt = program.statements[1]
 		LU.assertTrue(ast.ExpressionStatement.isInstance(stmt))
 
-		local exp = stmt.expression --[[@as PrefixExpression]]
+		local exp = stmt.expression --[[@as ast.PrefixExpression]]
 		LU.assertTrue(ast.PrefixExpression.isInstance(exp))
 
 		if exp.operator ~= tt.operator then
@@ -315,7 +316,7 @@ function TestParser:testParsingInfixExpressions()
 		LU.assertEquals(#program.statements, 1)
 		local stmt = program.statements[1]
 		LU.assertTrue(ast.ExpressionStatement.isInstance(stmt))
-		local exp = stmt.expression --[[@as InfixExpression ]]
+		local exp = stmt.expression --[[@as ast.InfixExpression ]]
 		LU.assertTrue(ast.InfixExpression.isInstance(exp))
 		testInfixExpression(exp, tt.leftValue, tt.operator, tt.rightValue)
 	end
@@ -390,6 +391,14 @@ function TestParser:testOperatorPrecedenceParsing()
 		{ "a + add(b * c) + d",                        "((a + add((b * c))) + d)" },
 		{ "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))", "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))" },
 		{ "add(a + b + c * d / f + g)",                "add((((a + b) + ((c * d) / f)) + g))" },
+		{
+			"a * [1, 2, 3, 4][b * c] * d",
+			"((a * ([1, 2, 3, 4][(b * c)])) * d)",
+		},
+		{
+			"add(a * b[2], b[1], 2 * [1, 2][1])",
+			"add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+		},
 	}
 
 	---@type TestCaseOperatorPrecendenceParsing[]
@@ -438,9 +447,9 @@ function TestParser:testBooleanExpression()
 
 		LU.assertEquals(#program.statements, 1)
 		LU.assertIsTrue(ast.ExpressionStatement.isInstance(program.statements[1]))
-		local stmt = program.statements[1] --[[@as ExpressionStatement]]
+		local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
 		LU.assertIsTrue(ast.Bool.isInstance(stmt.expression))
-		local bool = stmt.expression --[[@as Bool]]
+		local bool = stmt.expression --[[@as ast.Bool]]
 		LU.assertEquals(bool.value, tt.expectedBoolean)
 	end
 end
@@ -456,13 +465,13 @@ function TestParser:testIfExpression()
 	assert(program, "program is nil")
 	LU.assertEquals(#program.statements, 1)
 	LU.assertIsTrue(ast.ExpressionStatement.isInstance(program.statements[1]))
-	local stmt = program.statements[1] --[[@as ExpressionStatement]]
+	local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
 	LU.assertIsTrue(ast.IfExpression.isInstance(stmt.expression))
-	local exp = stmt.expression --[[@as IfExpression]]
+	local exp = stmt.expression --[[@as ast.IfExpression]]
 	testInfixExpression(exp.condition, "x", "<", "y")
 	LU.assertEquals(#exp.consequence.statements, 1)
 	LU.assertIsTrue(ast.ExpressionStatement.isInstance(exp.consequence.statements[1]))
-	local consequence = exp.consequence.statements[1] --[[@as ExpressionStatement]]
+	local consequence = exp.consequence.statements[1] --[[@as ast.ExpressionStatement]]
 	testIdentifier(consequence.expression, "x")
 	LU.assertIsNil(exp.alternative)
 end
@@ -479,17 +488,17 @@ function TestParser:testIfElseExpression()
 	assert(program)
 	LU.assertEquals(#program.statements, 1)
 	LU.assertIsTrue(ast.ExpressionStatement.isInstance(program.statements[1]))
-	local stmt = program.statements[1]  --[[@as ExpressionStatement]]
+	local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
 	LU.assertIsTrue(ast.IfExpression.isInstance(stmt.expression))
-	local exp = stmt.expression  --[[@as IfExpression]]
+	local exp = stmt.expression --[[@as ast.IfExpression]]
 	testInfixExpression(exp.condition, "x", "<", "y")
 	LU.assertEquals(#exp.consequence.statements, 1)
 	LU.assertIsTrue(ast.ExpressionStatement.isInstance(exp.consequence.statements[1]))
-	local consequence = exp.consequence.statements[1] --[[@as ExpressionStatement]]
+	local consequence = exp.consequence.statements[1] --[[@as ast.ExpressionStatement]]
 	testIdentifier(consequence.expression, "x")
 	LU.assertEquals(#exp.alternative.statements, 1)
 	LU.assertIsTrue(ast.ExpressionStatement.isInstance(exp.alternative.statements[1]))
-	local alternative = exp.alternative.statements[1]  --[[@as ExpressionStatement]]
+	local alternative = exp.alternative.statements[1] --[[@as ast.ExpressionStatement]]
 	testIdentifier(alternative.expression, "y")
 end
 
@@ -503,15 +512,15 @@ function TestParser:testFunctionLiteralParsing()
 
 	LU.assertEquals(#program.statements, 1)
 	LU.assertIsTrue(ast.ExpressionStatement.isInstance(program.statements[1]))
-	local stmt = program.statements[1]  --[[@as ExpressionStatement]]
+	local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
 	LU.assertIsTrue(ast.FunctionLiteral.isInstance(stmt.expression))
-	local func = stmt.expression  --[[@as FunctionLiteral]]
+	local func = stmt.expression --[[@as ast.FunctionLiteral]]
 	LU.assertEquals(#func.parameters, 2)
 	testLiteralExpression(func.parameters[1], "x")
 	testLiteralExpression(func.parameters[2], "y")
 	LU.assertEquals(#func.body.statements, 1)
 	LU.assertIsTrue(ast.ExpressionStatement.isInstance(func.body.statements[1]))
-	local bodyStmt = func.body.statements[1]  --[[@as ExpressionStatement]]
+	local bodyStmt = func.body.statements[1] --[[@as ast.ExpressionStatement]]
 	testInfixExpression(bodyStmt.expression, "x", "+", "y")
 end
 
@@ -522,9 +531,9 @@ function TestParser:testFunctionParameterParsing()
 
 	---@type TestCaseTestFunctionParameterParsing[]
 	local tests = {
-		{input = "fn() {};", expectedParams = {}},
-		{input = "fn(x) {};", expectedParams = {"x"}},
-		{input = "fn(x, y, z) {};", expectedParams = {"x", "y", "z"}},
+		{ input = "fn() {};",        expectedParams = {} },
+		{ input = "fn(x) {};",       expectedParams = { "x" } },
+		{ input = "fn(x, y, z) {};", expectedParams = { "x", "y", "z" } },
 	}
 
 	for _, tt in ipairs(tests) do
@@ -536,9 +545,9 @@ function TestParser:testFunctionParameterParsing()
 		assert(program)
 
 		LU.assertIsTrue(ast.ExpressionStatement.isInstance(program.statements[1]))
-		local stmt = program.statements[1]  --[[@as ExpressionStatement]]
+		local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
 		LU.assertIsTrue(ast.FunctionLiteral.isInstance(stmt.expression))
-		local func = stmt.expression  --[[@as FunctionLiteral]]
+		local func = stmt.expression --[[@as ast.FunctionLiteral]]
 		LU.assertEquals(#func.parameters, #tt.expectedParams)
 		for i, ident in ipairs(tt.expectedParams) do
 			testLiteralExpression(func.parameters[i], ident)
@@ -556,9 +565,9 @@ function TestParser:testCallExpressionParsing()
 	assert(program)
 	LU.assertEquals(#program.statements, 1)
 	LU.assertIsTrue(ast.ExpressionStatement.isInstance(program.statements[1]))
-	local stmt = program.statements[1]  --[[@as ExpressionStatement]]
+	local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
 	LU.assertIsTrue(ast.CallExpression.isInstance(stmt.expression))
-	local exp = stmt.expression  --[[@as CallExpression]]
+	local exp = stmt.expression --[[@as ast.CallExpression]]
 	testIdentifier(exp.func, "add")
 	LU.assertEquals(#exp.arguments, 3)
 	testLiteralExpression(exp.arguments[1], 1)
@@ -576,8 +585,98 @@ function TestParser:testStringLiteralExpression()
 	assert(program)
 
 	LU.assertTrue(ast.ExpressionStatement.isInstance(program.statements[1]))
-	local stmt = program.statements[1]  --[[@as ast.ExpressionStatement]]
+	local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
 	LU.assertTrue(ast.StringLiteral.isInstance(stmt.expression))
-	local literal = stmt.expression  --[[@as ast.StringLiteral]]
+	local literal = stmt.expression --[[@as ast.StringLiteral]]
 	LU.assertEquals(literal.value, "hello world")
+end
+
+function TestParser:testParsingArrayLiterals()
+	local input = "[1, 2 * 2, 3 + 3]"
+	local l = lexer.Lexer:new(input)
+	local p = parser.Parser:new(l)
+	local program = p:parseProgram()
+	checkParserErrors(p)
+
+	assert(program)
+	LU.assertIsTrue(ast.ExpressionStatement.isInstance(program.statements[1]))
+	local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
+	LU.assertIsTrue(ast.ArrayLiteral.isInstance(stmt.expression))
+	local array = stmt.expression --[[@as ast.ArrayLiteral]]
+	LU.assertEquals(#array.elements, 3)
+	testIntegerLiteral(array.elements[1], 1)
+	testInfixExpression(array.elements[2], 2, "*", 2)
+	testInfixExpression(array.elements[3], 3, "+", 3)
+end
+
+function TestParser:testParsingIndexExpressions()
+	local input = "myArray[1 + 1]"
+	local l = lexer.Lexer:new(input)
+	local p = parser.Parser:new(l)
+	local program = p:parseProgram()
+	checkParserErrors(p)
+
+	LU.assertIsTrue(ast.ExpressionStatement.isInstance(program.statements[1]))
+	local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
+	LU.assertIsTrue(ast.IndexExpression.isInstance(stmt.expression))
+	local indexExp = stmt.expression --[[@as ast.IndexExpression]]
+	testIdentifier(indexExp.left, "myArray")
+	testInfixExpression(indexExp.index, 1, "+", 1)
+end
+
+function TestParser:testParsingHashLiteralsStringKeys()
+	local input = [[{"one": 1, "two": 2, "three": 3}]]
+	local l = lexer.Lexer:new(input)
+	local p = parser.Parser:new(l)
+	local program = p:parseProgram()
+	checkParserErrors(p)
+
+	local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
+	LU.assertIsTrue(ast.HashLiteral.isInstance(stmt.expression))
+	local hash = stmt.expression --[[@as ast.HashLiteral]]
+	LU.assertEquals(#utils.tableKeys(hash.pairs), 3)
+
+	---@type {[string]: integer}
+	local expected = {
+		one = 1,
+		two = 2,
+		three = 3,
+	}
+
+	for k, v in pairs(hash.pairs) do
+		LU.assertIsTrue(ast.StringLiteral.isInstance(k))
+		local literal = k --[[@as string]]
+		local expectedValue = expected[tostring(literal)]
+		testIntegerLiteral(v, expectedValue)
+	end
+end
+
+function TestParser:testParsingEmptyHashLiteral()
+	local input = {}
+	local l = lexer.Lexer:new(input)
+	local p = parser.Parser:new(l)
+	local program = p:parseProgram()
+	checkParserErrors(p)
+
+	local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
+	LU.assertIsTrue(ast.HashLiteral.isInstance(stmt.expression))
+	local hash = stmt.expression --[[@as ast.HashLiteral]]
+	LU.assertEquals(#utils.tableKeys(hash.pairs), 0)
+end
+
+function TestParser:testParsingHashLiteralsWithExpressions()
+	local input = [[{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}]]
+	local l = lexer.Lexer:new(input)
+	local p = parser.Parser:new(l)
+	local program = p:parseProgram()
+	checkParserErrors(p)
+
+	local stmt = program.statements[1] --[[@as ast.ExpressionStatement]]
+	LU.assertIsTrue(ast.HashLiteral.isInstance(stmt.expression))
+	local hash = stmt.expression  --[[@as ast.HashLiteral]]
+	LU.assertEquals(#utils.tableKeys(hash.pairs), 3)
+
+	---@type {[string]: function(ast.Expresion)}
+	local tests = {
+		"
 end

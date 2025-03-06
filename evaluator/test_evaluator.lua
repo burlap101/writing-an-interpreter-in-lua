@@ -28,9 +28,9 @@ end
 ---@param obj object.Object
 ---@param expected integer
 local function testIntegerObject(obj, expected)
-	--	if not object.Integer.isInstance(obj) then
-	--		print(LU.prettystr(obj))
-	--	end
+	if not object.Integer.isInstance(obj) then
+		print(LU.prettystr(obj))
+	end
 	LU.assertIsTrue(object.Integer.isInstance(obj))
 	local result = obj --[[@as object.Integer]]
 	LU.assertEquals(result.value, expected)
@@ -390,8 +390,60 @@ function TestEvaluator:testBuiltinFunctions()
 			testIntegerObject(evaluated, math.floor(tt.expected))
 		elseif type(tt.expected) == "string" then
 			LU.assertIsTrue(object.Error.isInstance(evaluated))
-			local errObj = evaluated  --[[@as object.Error]]
+			local errObj = evaluated --[[@as object.Error]]
 			LU.assertEquals(errObj.message, tt.expected)
+		end
+	end
+end
+
+function TestEvaluator:testArrayLiterals()
+	local input = "[1, 2 * 2, 3 + 3]"
+	local evaluated = testEval(input)
+	LU.assertIsTrue(object.Array.isInstance(evaluated))
+	local result = evaluated --[[@as object.Array]]
+	LU.assertEquals(#result.elements, 3)
+	testIntegerObject(result.elements[1], 1)
+	testIntegerObject(result.elements[2], 4)
+	testIntegerObject(result.elements[3], 6)
+end
+
+function TestEvaluator:testArrayIndexExpressions()
+	---@class TestCaseTestEvaluatorTestArrayIndexExpressions
+	---@field input string
+	---@field expected integer?
+
+	---@type table<string, integer?>
+	local testArr = {
+		{ "[1, 2, 3][0]",                                                   1 },
+		{ "[1, 2, 3][1]",                                                   2 },
+		{ "[1, 2, 3][2]",                                                   3 },
+		{ "let i = 0; [1][i];",                                             1 },
+		{ "[1, 2, 3][1 + 1];",                                              3 },
+		{ "let myArray = [1, 2, 3]; myArray[2];",                           3 },
+		{ "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];", 6 },
+		{ "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]",        2 },
+		{ "[1, 2, 3][3]",                                                   nil },
+		{ "[1, 2, 3][-1]",                                                  nil },
+	}
+
+	---@type TestCaseTestEvaluatorTestArrayIndexExpressions[]
+	local tests = {}
+	for _, tc in ipairs(testArr) do
+		---@type TestCaseTestEvaluatorTestArrayIndexExpressions
+		local test = {
+			input = tc[1],
+			expected = tc[2],
+		}
+		table.insert(tests, test)
+	end
+
+	for _, tt in ipairs(tests) do
+		local evaluated = testEval(tt.input)
+		local integer = tt.expected
+		if integer ~= nil then
+			testIntegerObject(evaluated, math.floor(integer))
+		else
+			testNullObject(evaluated)
 		end
 	end
 end

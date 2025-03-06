@@ -27,6 +27,8 @@ TestLexer = {}
 			10 != 9;
 			"foobar"
 			"foo bar"
+			[1,2];
+			{"foo": "bar"}
 		]]
 		---@class TestCase
 		---@field expectedType TokenType
@@ -109,6 +111,17 @@ TestLexer = {}
 			{expectedType=token.TokenType.SEMICOLON, expectedLiteral=";"},
 			{expectedType=token.TokenType.STRING, expectedLiteral="foobar"},
 			{expectedType=token.TokenType.STRING, expectedLiteral="foo bar"},
+			{expectedType=token.TokenType.LBRACKET, expectedLiteral="["},
+			{expectedType=token.TokenType.INT, expectedLiteral="1"},
+			{expectedType=token.TokenType.COMMA, expectedLiteral=","},
+			{expectedType=token.TokenType.INT, expectedLiteral="2"},
+			{expectedType=token.TokenType.RBRACKET, expectedLiteral="]"},
+			{expectedType=token.TokenType.SEMICOLON, expectedLiteral=";"},
+			{expectedType=token.TokenType.LBRACE, expectedLiteral="{"},
+			{expectedType=token.TokenType.STRING, expectedLiteral="foo"},
+			{expectedType=token.TokenType.COLON, expectedLiteral=":"},
+			{expectedType=token.TokenType.STRING, expectedLiteral="bar"},
+			{expectedType=token.TokenType.RBRACE, expectedLiteral="}"},
 			{expectedType=token.TokenType.EOF, expectedLiteral=""},
 		}
 

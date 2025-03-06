@@ -12,6 +12,7 @@ local Precedence = {
 	PRODUCT = 5,
 	PREFIX = 6,
 	CALL = 7,
+	INDEX = 8,
 }
 M.Precedence = Precedence
 
@@ -26,6 +27,7 @@ local precedences = {
 	[token.TokenType.SLASH] = Precedence.PRODUCT,
 	[token.TokenType.ASTERISK] = Precedence.PRODUCT,
 	[token.TokenType.LPAREN] = Precedence.CALL,
+	[token.TokenType.LBRACKET] = Precedence.INDEX,
 }
 
 ---@alias PrefixParseFn fun(): ast.Expression?
@@ -65,6 +67,7 @@ function Parser:new(lexer)
 	p:registerPrefix(token.TokenType.IF, p:parseIfExpression())
 	p:registerPrefix(token.TokenType.FUNCTION, p:parseFunctionLiteral())
 	p:registerPrefix(token.TokenType.STRING, p:parseStringLiteral())
+	p:registerPrefix(token.TokenType.LBRACKET, p:parseArrayLiteral())
 
 	-- Declare and registr all infix functions
 	p.infixParseFns = {}
@@ -77,6 +80,7 @@ function Parser:new(lexer)
 	p:registerInfix(token.TokenType.LT, p:parseInfixExpression())
 	p:registerInfix(token.TokenType.GT, p:parseInfixExpression())
 	p:registerInfix(token.TokenType.LPAREN, p:parseCallExpression())
+	p:registerInfix(token.TokenType.LBRACKET, p:parseIndexExpression())
 
 	-- Return
 	return p
@@ -92,7 +96,7 @@ function Parser:parseCallExpression()
 			token = self.curToken,
 			func = func,
 		}
-		exp.arguments = self:parseCallArguments()
+		exp.arguments = self:parseExpressionList(token.TokenType.RPAREN)
 		return exp
 	end
 	return fn
@@ -455,6 +459,39 @@ function Parser:parseExpression(precedence)
 	return leftExp
 end
 
+---Returns Prefix fn to parse Arrays
+---@return PrefixParseFn
+function Parser:parseArrayLiteral()
+	return function()
+		local array = ast.ArrayLiteral:new{token = self.curToken}
+		array.elements = self:parseExpressionList(token.TokenType.RBRACKET)
+		return array
+	end
+end
+
+---Parse an expression list (e.g. array)
+---@param endi TokenType
+---@return ast.Expression[]?
+function Parser:parseExpressionList(endi)
+	---@type ast.Expression[]
+	local list = {}
+	if self:peekTokenIs(endi) then
+		self:nextToken()
+		return list
+	end
+	self:nextToken()
+	table.insert(list, self:parseExpression(Precedence.LOWEST))
+	while self:peekTokenIs(token.TokenType.COMMA) do
+		self:nextToken()
+		self:nextToken()
+		table.insert(list, self:parseExpression(Precedence.LOWEST))
+	end
+	if not self:expectPeek(endi) then
+		return nil
+	end
+	return list
+end
+
 ---Determines if supplied token type matches current token type
 ---@param t TokenType
 ---@return boolean
@@ -494,6 +531,20 @@ end
 function Parser:parseStringLiteral()
 	return function()
 		return ast.StringLiteral:new{token = self.curToken, value = self.curToken.literal}
+	end
+end
+
+---Infix function for parsing array index expressions
+---@return InfixParseFn
+function Parser:parseIndexExpression()
+	return function(left)
+		local exp = ast.IndexExpression:new{token = self.curToken, left = left}
+		self:nextToken()
+		exp.index = self:parseExpression(Precedence.LOWEST)
+		if not self:expectPeek(token.TokenType.RBRACKET) then
+			return nil
+		end
+		return exp
 	end
 end
 

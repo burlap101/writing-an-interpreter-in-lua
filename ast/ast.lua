@@ -635,5 +635,162 @@ function StringLiteral:toString()
 	return self.token.literal
 end
 
+---@class ast.ArrayLiteral:ast.Expression
+---@field token Token
+---@field elements ast.Expression[]
+local ArrayLiteral = utils.inheritsFrom(Expression)
+ArrayLiteral.metatable = {
+	__index = ArrayLiteral,
+	__tostring = function(t)
+		return t:toString()
+	end
+}
+M.ArrayLiteral = ArrayLiteral
+
+---Constructor for ArrayLiteral object
+---@param al ast.ArrayLiteral
+---@return ast.ArrayLiteral
+function ArrayLiteral:new(al)
+	al = setmetatable(al or {}, self.metatable)
+	return al
+end
+
+function ArrayLiteral:expressionNode()
+end
+
+---Determines if obj is instance of ArrayLiteral
+---@param obj table
+---@return boolean
+function ArrayLiteral.isInstance(obj)
+	return getmetatable(obj) == ArrayLiteral.metatable
+end
+
+---Gets token.literal
+---@return string
+function ArrayLiteral:tokenLiteral()
+	return self.token.literal
+end
+
+---Gets string representation of array
+---@return string
+function ArrayLiteral:toString()
+	local out = ""
+
+	---@type string[]
+	local elements = {}
+
+	for _, el in ipairs(self.elements) do
+		table.insert(elements, tostring(el))
+	end
+
+	out = out .. "["
+	out = out .. table.concat(elements, ", ")
+	out = out .. "]"
+	return out
+end
+
+---@class ast.IndexExpression:ast.Expression
+---@field token Token - the '[' token
+---@field left ast.Expression
+---@field index ast.Expression?
+local IndexExpression = utils.inheritsFrom(Expression)
+IndexExpression.metatable = {
+	__index = IndexExpression,
+	__tostring = function (t)
+		return t:toString()
+	end
+}
+M.IndexExpression = IndexExpression
+
+---Constructor for IndexExpression object
+---@param ie ast.IndexExpression
+---@return ast.IndexExpression
+function IndexExpression:new(ie)
+	ie = setmetatable(ie or {}, self.metatable)
+	return ie
+end
+
+---Go interface method completeness thing
+function IndexExpression:expressionNode()
+end
+
+---Determine if obj is instance of IndexExpression
+---@param obj table
+---@return boolean
+function IndexExpression.isInstance(obj)
+	return getmetatable(obj) == IndexExpression.metatable
+end
+
+---Getter for token.literal
+---@return string
+function IndexExpression:tokenLiteral()
+	return self.token.literal
+end
+
+---String representation of IndexExpression
+---@return string
+function IndexExpression:toString()
+	local out = ""
+	out = out .. "("
+	out = out .. tostring(self.left)
+	out = out .. "["
+	out = out .. tostring(self.index)
+	out = out .. "])"
+	return out
+end
+
+
+---@class ast.HashLiteral:ast.Expression
+---@field token Token the '{' token
+---@field pairs {[ast.Expression]: ast.Expression}
+local HashLiteral = utils.inheritsFrom(Expression)
+HashLiteral.metatable = {
+	__index = HashLiteral,
+	__tostring = function (t)
+		return t:toString()
+	end
+}
+M.HashLiteral = HashLiteral
+
+---Constructor for HashLiteral
+---@param hl ast.HashLiteral
+---@return ast.HashLiteral
+function HashLiteral:new(hl)
+	hl = setmetatable(hl or {}, self.metatable)
+	hl.pairs = {}
+	return hl
+end
+
+---Determines if obj is instance of HashLiteral
+---@param obj table
+---@return boolean
+function HashLiteral.isInstance(obj)
+	return getmetatable(obj) == HashLiteral.metatable
+end
+
+---Blank function for Go interface completeness
+function HashLiteral:expressionNode()
+end
+
+---Getter for token.literal
+---@return string
+function HashLiteral:tokenLiteral()
+	return self.token.literal
+end
+
+---String representation of HashLiteral
+---@return string
+function HashLiteral:toString()
+	local out = ""
+	---@type string[]
+	local prs = {}
+	for k, v in pairs(self.pairs) do
+		table.insert(prs, tostring(k) .. ":" .. tostring(v))
+	end
+	out = out .. "{"
+	out = out .. table.concat(prs, ", ")
+	out = out .. "}"
+	return out
+end
 
 return M

@@ -33,4 +33,16 @@ local function inheritsFrom(baseClass)
 end
 M.inheritsFrom = inheritsFrom
 
+---Returns the keys of a table as a list
+---@param t table
+---@return any[]
+local function tableKeys(t)
+	local keys = {}
+	for k in pairs(t) do
+		table.insert(keys, k)
+	end
+	return keys
+end
+M.tableKeys = tableKeys
+
 return M

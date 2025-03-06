@@ -11,15 +11,107 @@ M.TRUE = TRUE
 M.FALSE = FALSE
 M.NULL = NULL
 
-
---Defines builtin functions variable
+---Defines builtin functions variable
 ---@type {[string]: object.Builtin}
 local builtins = {
-	["len"] = object.Builtin:new{
-		fn = function (...)
+	["len"] = object.Builtin:new {
+		---comment
+		---@param ... object.Object[]
+		---@return object.Object
+		fn = function(...)
+			local nargs = select("#", ...)
+			if nargs ~= 1 then
+				return M.newError("wrong number of arguments. got=%d, want=1", nargs)
+			end
+			local args = { ... }
+			if object.Array.isInstance(args[1]) then
+				local arg = args[1] --[[@as object.Array]]
+				return object.Integer:new { value = #arg.elements }
+			elseif object.String.isInstance(args[1]) then
+				local arg = args[1] --[[@as object.String]]
+				return object.Integer:new { value = math.floor(string.len(arg.value)) }
+			else
+				return M.newError("argument to `len` not supported, got %s", args[1]:type())
+			end
+		end
+	},
+	["first"] = object.Builtin:new {
+		---first function
+		---@param ... object.Object
+		---@return object.Object
+		fn = function(...)
+			local nargs = select("#", ...)
+			if nargs ~= 1 then
+				return M.newError("wrong number of arguments. got=%s, want=1", nargs)
+			end
+			local args = { ... }
+			if args[1]:type() ~= object.ObjectTypes.ARRAY_OBJ then
+				return M.newError("argument to `first` must be ARRAY, got %s", args[1].type())
+			end
+			local arr = args[1]  --[[@as object.Array]]
+			if #arr.elements > 0 then
+				return arr.elements[1]
+			end
 			return NULL
 		end
-	}
+	},
+	["last"] = object.Builtin:new {
+		fn = function (...)
+			local nargs = select("#", ...)
+			if nargs ~= 1 then
+				return M.newError("wrong number of arguments. got=%d, want=1", nargs)
+			end
+			local args = { ... }
+			if args[1]:type() ~= object.ObjectTypes.ARRAY_OBJ then
+				return M.newError("argumend to `last` must be ARRAY, got %s", args[1]:type())
+			end
+			local arr = args[1]  --[[@as object.Array]]
+			local length = #arr.elements
+			if length > 0 then
+				return arr.elements[length]
+			end
+			return NULL
+		end
+	},
+	["rest"] = object.Builtin:new {
+		fn = function (...)
+			local nargs = select("#", ...)
+			if nargs ~= 1 then
+				return M.newError("wrong number of arguments. got=%d, want=1", nargs)
+			end
+			local args = { ... }
+			if args[1]:type() ~= object.ObjectTypes.ARRAY_OBJ then
+				return M.newError("argument to `rest` must the ARRAY, got %s", args[1]:type())
+			end
+			local arr = args[1]  --[[@as object.Array]]
+			local length = #arr.elements
+			if length > 0 then
+				---@type object.Object[]
+				local newElements = {}
+				newElements = table.pack(table.unpack(arr.elements, 2, length))
+				return object.Array:new{elements = newElements}
+			end
+			return NULL
+		end
+	},
+	["push"] = object.Builtin:new {
+		fn = function (...)
+			local nargs = select("#", ...)
+			if nargs ~= 2 then
+				return M.newError("wrong number of arguments. got=%d, want=2", nargs)
+			end
+			local args = { ... }
+			if args[1]:type() ~= object.ObjectTypes.ARRAY_OBJ then
+				return M.newError("argument to `push` must be ARRAY, got %s", args[1]:type())
+			end
+			local arr = args[1]  --[[@as object.Array]]
+			local length = #arr.elements
+			local newElements = {}
+			newElements = table.pack(table.unpack(arr.elements))
+			newElements[length + 1] = args[2]
+			return object.Array:new { elements = newElements }
+		end
+	},
 }
 
 ---Determines if object is an Error
@@ -31,6 +123,7 @@ local function isError(obj)
 	end
 	return false
 end
+M.isError = isError
 
 ---Creates a new Error obj
 ---@param format any
@@ -39,6 +132,7 @@ end
 local function newError(format, ...)
 	return object.Error:new { message = string.format(format, ...) }
 end
+M.newError = newError
 
 ---Handles native bool to boolean object
 ---@param input boolean
@@ -77,13 +171,17 @@ end
 ---@param args object.Object[]
 ---@return object.Object
 local function applyFunction(fn, args)
-	if not object.Func.isInstance(fn) then
+	if object.Func.isInstance(fn) then
+		local func = fn --[[@as object.Func]]
+		local extendedEnv = extendFunctionEnv(func, args)
+		local evaluated = M.eval(func.body, extendedEnv)
+		return unwrapReturnValue(evaluated)
+	elseif object.Builtin.isInstance(fn) then
+		local func = fn --[[@as object.Builtin]]
+		return func.fn(table.unpack(args))
+	else
 		return newError("not a function: %s", fn:type())
 	end
-	local func = fn --[[@as object.Func]]
-	local extendedEnv = extendFunctionEnv(func, args)
-	local evaluated = M.eval(func.body, extendedEnv)
-	return unwrapReturnValue(evaluated)
 end
 
 ---Handles expressions eval
@@ -117,7 +215,7 @@ local function evalIdentifier(node, env)
 	if builtin ~= nil then
 		return builtin
 	end
-	return newError("identifier not found: "..node.value)
+	return newError("identifier not found: " .. node.value)
 end
 
 ---Handles bang operator eval logic
@@ -201,11 +299,11 @@ end
 local function evalStringInfixExpression(operator, left, right)
 	if operator ~= "+" then
 		return newError(
-		"unknown operator: %s %s %s",
-		left:type(),
-		operator,
-		right:type()
-	)
+			"unknown operator: %s %s %s",
+			left:type(),
+			operator,
+			right:type()
+		)
 	end
 	local l = left --[[@as object.String]]
 	local leftVal = l.value
@@ -316,6 +414,32 @@ local function evalBlockStatement(block, env)
 	return result --[[@as object.Object]]
 end
 
+---Handles index expression evaluation specifically for arrays
+---@param array object.Object
+---@param index object.Object
+---@return object.Object
+local function evalArrayIndexExpression(array, index)
+	local arrayObject = array --[[@as object.Array]]
+	local integerObject = index --[[@as object.Integer]]
+	local idx = integerObject.value
+	local max = #arrayObject.elements - 1
+	if idx < 0 or idx > max then
+		return NULL
+	end
+	return arrayObject.elements[idx + 1]
+end
+
+---Evaluates an IndexExpression e.g. arr[0], arr[500 + 1]
+---@param left object.Object
+---@param index object.Object
+local function evalIndexExpression(left, index)
+	if left:type() == object.ObjectTypes.ARRAY_OBJ and index:type() == object.ObjectTypes.INTEGER_OBJ then
+		return evalArrayIndexExpression(left, index)
+	else
+		return newError("index operator not supported: %s", left:type())
+	end
+end
+
 ---Eval function
 ---@param node ast.Node
 ---@param env environment.Environment
@@ -393,6 +517,24 @@ local function eval(node, env)
 	elseif ast.StringLiteral.isInstance(node) then
 		local str = node --[[@as object.String]]
 		return object.String:new { value = str.value }
+	elseif ast.ArrayLiteral.isInstance(node) then
+		local arr = node --[[@as ast.ArrayLiteral]]
+		local elements = evalExpressions(arr.elements, env)
+		if #elements == 1 and isError(elements[1]) then
+			return elements[1]
+		end
+		return object.Array:new { elements = elements }
+	elseif ast.IndexExpression.isInstance(node) then
+		local ie = node --[[@as ast.IndexExpression]]
+		local left = eval(ie.left, env)
+		if isError(left) then
+			return left
+		end
+		local index = eval(ie.index, env)
+		if isError(index) then
+			return index
+		end
+		return evalIndexExpression(left, index)
 	end
 	return nil
 end

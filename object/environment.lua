@@ -31,7 +31,6 @@ end
 function Environment:get(name)
 	local obj = self.store[name]
 	local ok = obj ~= nil
-	---@diagnostic disable-next-line
 	if not ok and self.outer ~= nil then
 		obj, ok = self.outer:get(name)
 	end
