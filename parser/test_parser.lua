@@ -652,7 +652,7 @@ function TestParser:testParsingHashLiteralsStringKeys()
 end
 
 function TestParser:testParsingEmptyHashLiteral()
-	local input = {}
+	local input = "{}"
 	local l = lexer.Lexer:new(input)
 	local p = parser.Parser:new(l)
 	local program = p:parseProgram()
@@ -676,7 +676,24 @@ function TestParser:testParsingHashLiteralsWithExpressions()
 	local hash = stmt.expression  --[[@as ast.HashLiteral]]
 	LU.assertEquals(#utils.tableKeys(hash.pairs), 3)
 
-	---@type {[string]: function(ast.Expresion)}
+	---@type {[string]: fun(e: ast.Expression)}
 	local tests = {
-		"
+		one = function(e)
+			testInfixExpression(e, 0, "+", 1)
+		end,
+		two = function(e)
+			testInfixExpression(e, 10, "-", 8)
+		end,
+		three = function(e)
+			testInfixExpression(e, 15, "/", 5)
+		end,
+	}
+
+	for k, v in pairs(hash.pairs) do
+		LU.assertIsTrue(ast.StringLiteral.isInstance(k))
+		local literal = k  --[[@as ast.StringLiteral]]
+		local testFunc = tests[tostring(literal)]
+		LU.assertNotIsNil(testFunc, string.format("No test function for key %q found", tostring(literal)))
+		testFunc(v)
+	end
 end

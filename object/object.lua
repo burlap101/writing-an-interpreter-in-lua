@@ -1,4 +1,5 @@
 local utils = require("utils")
+local md5 = require("hashings.md5")
 local M = {}
 
 ---@alias object.ObjectType string
@@ -15,6 +16,7 @@ local ObjectTypes = {
 	STRING_OBJ = "STRING",
 	BUILTIN_OBJ = "BUILTIN",
 	ARRAY_OBJ = "ARRAY",
+	HASH_OBJ = "HASH",
 }
 M.ObjectTypes = ObjectTypes
 
@@ -34,9 +36,35 @@ function Object:inspect()
 	error("not implemented")
 end
 
----@class object.Integer:object.Object
+---@class object.Hashable:object.Object
+---@field hashKey fun(object.Object): object.HashKey
+local Hashable = utils.inheritsFrom(Object)
+M.Hashable = Hashable
+
+---Determines if obj implements Hashable interface
+---@param obj table
+---@return boolean
+function Hashable.isInstance(obj)
+	return M.isHashable(obj)
+end
+
+---ABC method
+---@return object.HashKey
+function Hashable:hashKey()
+	error("not implemented")
+end
+
+---Module function to test whether object is hashablee
+---@param obj any
+---@return boolean
+local function isHashable(obj)
+	return obj.hashKey ~= nil
+end
+M.isHashable = isHashable
+
+---@class object.Integer:object.Hashable
 ---@field value integer
-local Integer = utils.inheritsFrom(Object)
+local Integer = utils.inheritsFrom(Hashable)
 Integer.metatable = {
 	__index = Integer,
 }
@@ -69,9 +97,9 @@ function Integer:type()
 	return ObjectTypes.INTEGER_OBJ
 end
 
----@class object.Bool:object.Object
+---@class object.Bool:object.Hashable
 ---@field value boolean
-local Bool = utils.inheritsFrom(Object)
+local Bool = utils.inheritsFrom(Hashable)
 Bool.metatable = {
 	__index = Bool,
 }
@@ -232,9 +260,9 @@ function Func:inspect()
 	return out
 end
 
----@class object.String:object.Object
+---@class object.String:object.Hashable
 ---@field value string
-local String = utils.inheritsFrom(Object)
+local String = utils.inheritsFrom(Hashable)
 String.metatable = { __index = String }
 M.String = String
 
@@ -268,7 +296,7 @@ end
 ---@class object.Builtin:object.Object
 ---@field fn object.BuiltinFunction
 local Builtin = utils.inheritsFrom(Object)
-Builtin.metatable = {__index = Builtin}
+Builtin.metatable = { __index = Builtin }
 M.Builtin = Builtin
 
 ---Constructor for a Builtin object
@@ -301,7 +329,7 @@ end
 ---@class object.Array:object.Object
 ---@field elements object.Object[]
 local Array = utils.inheritsFrom(Object)
-Array.metatable = {__index = Array}
+Array.metatable = { __index = Array }
 M.Array = Array
 
 ---Constructor for an array object
@@ -337,6 +365,117 @@ function Array:inspect()
 	out = out .. "["
 	out = out .. table.concat(elements, ", ")
 	out = out .. "]"
+	return out
+end
+
+---@class object.HashKey:object.Object
+---@field type object.ObjectType
+---@field value integer
+local HashKey = utils.inheritsFrom(Object)
+HashKey.metatable = {
+	__index = HashKey,
+	__tostring = function(t)
+		return t:toString()
+	end
+}
+M.HashKey = HashKey
+
+function HashKey:new(hk)
+	hk = setmetatable(hk or {}, self.metatable)
+	return hk
+end
+
+function HashKey:toString()
+	return self.type .. "|" .. self.value
+end
+
+---Case for boolean as hash key
+---@return object.HashKey
+function Bool:hashKey()
+	---@type integer
+	local value
+	if self.value then
+		value = 1
+	else
+		value = 0
+	end
+	return HashKey:new { type = self:type(), value = value }
+end
+
+---Case for integer key
+---@return object.HashKey
+function Integer:hashKey()
+	return HashKey:new { type = self:type(), value = self.value }
+end
+
+function String:hashKey()
+	local h = md5:new(self.value)
+	assert(h)
+	return HashKey:new { type = self:type(), value = tonumber(h:hexdigest(), 16) }
+end
+
+---@class object.HashPair:object.Object
+---@field key object.Object
+---@field value object.Object
+local HashPair = utils.inheritsFrom(Object)
+HashPair.metatable = {
+	__index = HashPair
+}
+M.HashPair = HashPair
+
+function HashPair:new(hp)
+	hp = setmetatable(hp or {}, self.metatable)
+	return hp
+end
+
+---@alias object.HashKeyString string
+
+---@class object.Hash:object.Object
+---@field pairs {[object.HashKeyString]: object.HashPair}
+local Hash = utils.inheritsFrom(Object)
+Hash.metatable = {
+	__index = Hash
+}
+M.Hash = Hash
+
+---Constructor for Hash
+---@param h object.Hash
+---@return object.Hash
+function Hash:new(h)
+	h = setmetatable(h or {}, self.metatable)
+	return h
+end
+
+---Determines if object is instance of Hash
+---@param obj table
+---@return boolean
+function Hash.isInstance(obj)
+	return getmetatable(obj) == Hash.metatable
+end
+
+---Getter for ObjectTypes string
+---@return ObjectTypes
+function Hash:type()
+	return ObjectTypes.HASH_OBJ
+end
+
+function Hash:inspect()
+	local out = ""
+	---@type string[]
+	local prs = {}
+	for _, pr in pairs(self.pairs) do
+		table.insert(
+			prs,
+			string.format(
+				"%s: %s",
+				pr.key:inspect(),
+				pr.value:inspect()
+			)
+		)
+	end
+	out = out .. "{"
+	out = out .. table.concat(prs, ", ")
+	out = out .. "}"
 	return out
 end
 

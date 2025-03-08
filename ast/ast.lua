@@ -757,7 +757,7 @@ M.HashLiteral = HashLiteral
 ---@return ast.HashLiteral
 function HashLiteral:new(hl)
 	hl = setmetatable(hl or {}, self.metatable)
-	hl.pairs = {}
+	hl.pairs = hl.pairs or {}
 	return hl
 end
 

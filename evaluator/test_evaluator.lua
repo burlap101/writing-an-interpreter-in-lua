@@ -243,6 +243,10 @@ function TestEvaluator:testErrorHandling()
 			[["Hello" - "World"]],
 			"unknown operator: STRING - STRING",
 		},
+		{
+			'{"name": "Monkey"}[fn(x) { x }];',
+			"unusable as hash key: FUNCTION",
+		},
 	}
 
 	---@type TestCaseTestErrorHandling[]
@@ -442,6 +446,75 @@ function TestEvaluator:testArrayIndexExpressions()
 		local integer = tt.expected
 		if integer ~= nil then
 			testIntegerObject(evaluated, math.floor(integer))
+		else
+			testNullObject(evaluated)
+		end
+	end
+end
+
+function TestEvaluator:testHashLiterals()
+	local input = [[
+		let two = "two";
+		{
+			"one": 10 - 9,
+			two: 1 + 1,
+			"thr" + "ee": 6 / 2,
+			4: 4,
+			true: 5,
+			false: 6,
+		}
+	]]
+	local evaluated = testEval(input)
+	LU.assertIsTrue(object.Hash.isInstance(evaluated))
+	local result = evaluated --[[@as object.Hash]]
+	---@type {[string]: integer}
+	local expected = {
+		[object.String:new { value = "one" }:hashKey():toString()] = 1,
+		[object.String:new { value = "two" }:hashKey():toString()] = 2,
+		[object.String:new { value = "three" }:hashKey():toString()] = 3,
+		[object.Integer:new { value = 4 }:hashKey():toString()] = 4,
+		[evaluator.TRUE:hashKey():toString()] = 5,
+		[evaluator.FALSE:hashKey():toString()] = 6,
+	}
+	LU.assertEquals(#result.pairs, #expected)
+	for expectedKey, expectedValue in pairs(expected) do
+		local pr = result.pairs[expectedKey]
+		LU.assertNotIsNil(pr)
+		testIntegerObject(pr.value, expectedValue)
+	end
+end
+
+function TestEvaluator:testHashIndexExpressions()
+	---@class TestCaseTestEvaluatorTestHashIndexExpressions
+	---@field input string
+	---@field expected any
+	
+	---@type {[string]: any}
+	local testsArr = {
+		['{"foo": 5}["foo"]'] = 5,
+		['{"foo": 5}["bar"]'] = nil,
+		['let key = "foo"; {"foo": 5}[key]'] = 5,
+		['{}["foo"]'] = nil,
+		['{5: 5}[5]'] = 5,
+		['{true: 5}[true]'] = 5,
+		['{false: 5}[false]'] = 5,
+	}
+	---@type TestCaseTestEvaluatorTestHashIndexExpressions[]
+	local tests = {}
+
+	for k, v in pairs(testsArr) do
+		---@type TestCaseTestEvaluatorTestHashIndexExpressions
+		local tc = {
+			input = k,
+			expected = v,
+		}
+		table.insert(tests, tc)
+	end
+
+	for _, tt in ipairs(tests) do
+		local evaluated = testEval(tt.input)
+		if type(tt.expected) == "number" then
+			testIntegerObject(evaluated, tt.expected)
 		else
 			testNullObject(evaluated)
 		end

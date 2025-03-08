@@ -68,6 +68,7 @@ function Parser:new(lexer)
 	p:registerPrefix(token.TokenType.FUNCTION, p:parseFunctionLiteral())
 	p:registerPrefix(token.TokenType.STRING, p:parseStringLiteral())
 	p:registerPrefix(token.TokenType.LBRACKET, p:parseArrayLiteral())
+	p:registerPrefix(token.TokenType.LBRACE, p:parseHashLiteral())
 
 	-- Declare and registr all infix functions
 	p.infixParseFns = {}
@@ -545,6 +546,33 @@ function Parser:parseIndexExpression()
 			return nil
 		end
 		return exp
+	end
+end
+
+---Prefix function for parsing hash literals
+---@return PrefixParseFn
+function Parser:parseHashLiteral()
+	return function()
+		local hash = ast.HashLiteral:new{token = self.curToken}
+		hash.pairs = {}
+		while not self:peekTokenIs(token.TokenType.RBRACE) do
+			self:nextToken()
+			local k = self:parseExpression(Precedence.LOWEST)
+			if not self:expectPeek(token.TokenType.COLON) then
+				return nil
+			end
+			self:nextToken()
+			local v = self:parseExpression(Precedence.LOWEST)
+			assert(k)
+			hash.pairs[k] = v
+			if not self:peekTokenIs(token.TokenType.RBRACE) and not self:expectPeek(token.TokenType.COMMA) then
+				return nil
+			end
+		end
+		if not self:expectPeek(token.TokenType.RBRACE) then
+			return nil
+		end
+		return hash
 	end
 end
 

@@ -21,7 +21,7 @@ local Lexer = {}
 M.Lexer = Lexer
 
 ---Constructor for a lexer
----@param input any
+---@param input string
 ---@return Lexer
 function Lexer:new(input)
 	local l = setmetatable({}, {__index = self})

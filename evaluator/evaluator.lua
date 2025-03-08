@@ -429,15 +429,63 @@ local function evalArrayIndexExpression(array, index)
 	return arrayObject.elements[idx + 1]
 end
 
+---Handles index for a hashmap
+---@param hash any
+---@param index any
+---@return object.Object
+local function evalHashIndexExpression(hash, index)
+	local hashObject = hash  --[[@as object.Hash]]
+	if not object.Hashable.isInstance(index) then
+		return newError("unusable as hash key: %s", index:type())
+	end
+	local k = index  --[[@as object.Hashable]]
+	local pr = hashObject.pairs[k:hashKey():toString()]
+	if pr == nil then
+		return NULL
+	end
+	return pr.value
+end
+
 ---Evaluates an IndexExpression e.g. arr[0], arr[500 + 1]
 ---@param left object.Object
 ---@param index object.Object
 local function evalIndexExpression(left, index)
 	if left:type() == object.ObjectTypes.ARRAY_OBJ and index:type() == object.ObjectTypes.INTEGER_OBJ then
 		return evalArrayIndexExpression(left, index)
+	elseif left:type() == object.ObjectTypes.HASH_OBJ then
+		return evalHashIndexExpression(left, index)
 	else
 		return newError("index operator not supported: %s", left:type())
 	end
+end
+
+---Evaluates a Hash Literal
+---@param node ast.HashLiteral
+---@param env environment.Environment
+---@return object.Object
+local function evalHashLiteral(node, env)
+	---@type {[object.HashKeyString]: object.HashPair}
+	local prs = {}
+	for keyNode, valueNode in pairs(node.pairs) do
+		local k = M.eval(keyNode, env)
+		if isError(k) then
+			return k
+		end
+		if not object.Hashable.isInstance(k) then
+			return newError("unusable as hash key: %s", k:type())
+		end
+		local hashKey = k  --[[@as object.Hashable]]
+		local v = M.eval(valueNode, env)
+		if isError(v) then
+			return v
+		end
+		-- Slightly modified from the implementation in the book
+		-- since tables are only built by reference in Lua so
+		-- created unique string creation
+		local hashed = hashKey:hashKey():toString()
+		prs[hashed] = object.HashPair:new{key = k, value = v}
+	end
+	return object.Hash:new{pairs = prs}
 end
 
 ---Eval function
@@ -535,6 +583,8 @@ local function eval(node, env)
 			return index
 		end
 		return evalIndexExpression(left, index)
+	elseif ast.HashLiteral.isInstance(node) then
+		return evalHashLiteral(node, env)
 	end
 	return nil
 end
