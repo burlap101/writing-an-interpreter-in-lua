@@ -112,6 +112,16 @@ local builtins = {
 			return object.Array:new { elements = newElements }
 		end
 	},
+	["puts"] = object.Builtin:new {
+		fn = function (...)
+			---@type object.Object[]
+			local args = { ... }
+			for _, arg in pairs(args) do
+				print(arg:inspect())
+			end
+			return NULL
+		end
+	},
 }
 
 ---Determines if object is an Error
