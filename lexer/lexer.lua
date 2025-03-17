@@ -1,5 +1,4 @@
 local M = {}
-
 local lu = require("luaunit")
 local token = require("token.token")
 
